@@ -306,12 +306,26 @@ namespace FooEditEngine
         public virtual bool TryScroll(double offset_x,double offset_y)
         {
             double x = this.Document.Src.X - offset_x;
+
             if (offset_x < 0 && x < 0)
                 return true;
+
             if (offset_y < 0 && this.Document.Src.Row == 0)
-                return true;
+            {
+                if (this.Document.Src.OffsetY == 0)
+                {
+                    return true;
+                }
+                else
+                {
+                    this.Document.Src = new SrcPoint(x, 0, 0);
+                    return false;
+                }
+            }
+
             if (offset_y > 0 && this.Document.Src.Row == this.Document.LayoutLines.Count - 1)
                 return true;
+
             var t = GetNearstRowAndOffsetY(this.Document.Src.Row, -this.Document.Src.OffsetY + offset_y);
             this.Document.Src = new SrcPoint(x, t.Item1, -t.Item2);
             return false;
