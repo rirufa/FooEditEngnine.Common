@@ -85,10 +85,8 @@ namespace FooEditEngine
         public ViewBase(Document doc, ITextRender r,Padding padding)
         {
             this._Padding = padding;
-            this.render = r;
             this.Document = doc;
-            this.render.ChangedRenderResource += new ChangedRenderResourceEventHandler(render_ChangedRenderResource);
-            this.render.ChangedRightToLeft += render_ChangedRightToLeft;
+            this.render = r;
             this.SrcChanged += new EventHandler((s, e) => { });
             this.PageBoundChanged += new EventHandler((s, e) => { });
         }
@@ -165,13 +163,31 @@ namespace FooEditEngine
 
         public event EventHandler PageBoundChanged;
 
+        ITextRender _render;
         /// <summary>
         /// テキストレンダラ―
         /// </summary>
         public ITextRender render
         {
-            get;
-            set;
+            get
+            {
+                return this._render;
+            }
+            set
+            {
+                if(this._render != value)
+                {
+                    if(this._render != null)
+                    {
+                        this._render.ChangedRenderResource -= new ChangedRenderResourceEventHandler(render_ChangedRenderResource);
+                        this._render.ChangedRightToLeft -= render_ChangedRightToLeft;
+                    }
+                    this._render = value;
+                    this._render.ChangedRenderResource += new ChangedRenderResourceEventHandler(render_ChangedRenderResource);
+                    this._render.ChangedRightToLeft += render_ChangedRightToLeft;
+                    this.OnRenderChanged(null);
+                }
+            }
         }
 
         /// <summary>
@@ -256,11 +272,14 @@ namespace FooEditEngine
                 if (value.Width < 0 || value.Height < 0)
                     throw new ArgumentOutOfRangeException("");
                 this._Rect = value;
-                CalculateClipRect();
-                CalculateLineBreak();
-                CalculateLineCountOnScreen();
-                if (this.Document.RightToLeft)
-                    this._LayoutLines.ClearLayoutCache();
+                if(this.render != null)
+                {
+                    CalculateClipRect();
+                    CalculateLineBreak();
+                    CalculateLineCountOnScreen();
+                    if (this.Document.RightToLeft)
+                        this._LayoutLines.ClearLayoutCache();
+                }
                 this.PageBoundChanged(this, null);
             }
         }
@@ -429,6 +448,14 @@ namespace FooEditEngine
         {
         }
 
+        protected virtual void OnRenderChanged(EventArgs e)
+        {
+            CalculateClipRect();
+            CalculateLineBreak();
+            CalculateLineCountOnScreen();
+            if (this.Document.RightToLeft)
+                this._LayoutLines.ClearLayoutCache();
+        }
 
         protected virtual void OnSrcChanged(EventArgs e)
         {
@@ -454,9 +481,15 @@ namespace FooEditEngine
             this._LayoutLines.ClearLayoutCache();
             if (e.type == ResourceType.Font)
             {
+                if (this.Document.LineBreak == LineBreakMethod.PageBound)
+                    this.Document.PerformLayout();
                 this.CalculateClipRect();
                 this.CalculateLineCountOnScreen();
                 this.CalculateWhloeViewPort();
+            }
+            if (e.type == ResourceType.InlineChar)
+            {
+                this.CalculateLineCountOnScreen();
             }
         }
 

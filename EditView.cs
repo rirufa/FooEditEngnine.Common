@@ -60,8 +60,6 @@ namespace FooEditEngine
         {
             this.CaretBlinkTime = 500;
             this.CaretWidthOnInsertMode = 1;
-            this.CalculateClipRect();
-            this.CaretLocation = new Point(this.render.TextArea.X, this.render.TextArea.Y);
             this.LayoutLines.FoldingCollection.StatusChanged += FoldingCollection_StatusChanged;
             this.IsFocused = false;
         }
@@ -178,6 +176,8 @@ namespace FooEditEngine
         /// <returns>テキストエリア内にあれば真。そうでなければ偽</returns>
         public bool HitTextArea(double x, double y)
         {
+            if (this.render == null)
+                return false;
             if (x >= this.render.TextArea.X && x <= this.render.TextArea.Right &&
                 y >= this.render.TextArea.Y && y <= this.render.TextArea.Bottom)
                 return true;
@@ -187,6 +187,8 @@ namespace FooEditEngine
 
         public bool IsUpperTextArea(double x, double y)
         {
+            if (this.render == null)
+                return false;
             if (x >= this.render.TextArea.X && x <= this.render.TextArea.Right && y < this.render.TextArea.Y)
                 return true;
             else
@@ -195,6 +197,8 @@ namespace FooEditEngine
 
         public bool IsUnderTextArea(double x,double y)
         {
+            if (this.render == null)
+                return false;
             if (x >= this.render.TextArea.X && x <= this.render.TextArea.Right && y > this.render.TextArea.Bottom)
                 return true;
             else
@@ -210,6 +214,9 @@ namespace FooEditEngine
         public FoldingItem HitFoldingData(double x, int row)
         {
             IEditorRender render = (IEditorRender)base.render;
+
+            if (render == null)
+                return null;
 
             if (x >= this.GetRealtiveX(AreaType.FoldingArea) && x <= this.GetRealtiveX(AreaType.FoldingArea) + render.FoldingWidth)
             {
@@ -234,6 +241,9 @@ namespace FooEditEngine
                 return;
 
             IEditorRender render = (IEditorRender)base.render;
+
+            if (render == null)
+                return;
 
             if ((updateRect.Height < this.PageBound.Height ||
                 updateRect.Width < this.PageBound.Width) && 
@@ -885,6 +895,14 @@ namespace FooEditEngine
             }
             return row;
         }
+        protected override void OnRenderChanged(EventArgs e)
+        {
+            base.OnRenderChanged(e);
+            if (this.render == null)
+                this.CaretLocation = new Point(0, 0);
+            else
+                this.CaretLocation = new Point(this.render.TextArea.X, this.render.TextArea.Y);
+        }
 
         protected override void CalculateClipRect()
         {
@@ -901,11 +919,12 @@ namespace FooEditEngine
             }
             else
             {
+                double foldingWidth = this.render != null ? render.FoldingWidth : 0;
                 if (this.Document.RightToLeft)
                     x = this.Padding.Left;
                 else
-                    x = this.Padding.Left + UpdateAreaTotalWidth + render.FoldingWidth;
-                width = this.PageBound.Width - this.Padding.Left - this.Padding.Right - render.FoldingWidth - UpdateAreaTotalWidth;
+                    x = this.Padding.Left + UpdateAreaTotalWidth + foldingWidth;
+                width = this.PageBound.Width - this.Padding.Left - this.Padding.Right - foldingWidth - UpdateAreaTotalWidth;
             }
 
             y = this.Padding.Top;
@@ -924,7 +943,8 @@ namespace FooEditEngine
             if (height < 0)
                 height = 0;
 
-            this.render.TextArea = new Rectangle(x, y, width, height);
+            if(this.render != null)
+                this.render.TextArea = new Rectangle(x, y, width, height);
 
             this.LineBreakingMarginWidth = width * 5 / 100;
         }

@@ -77,7 +77,6 @@ namespace FooEditEngine
         {
             this.Document = doc;
             this.View = view;
-            this.View.render.ChangedRenderResource += render_ChangedRenderResource;
             this.View.PageBoundChanged += View_PageBoundChanged;
             //this.Document.Clear();
         }
@@ -321,6 +320,8 @@ namespace FooEditEngine
         /// </summary>
         public void AdjustCaret()
         {
+            if (this.View.render == null)
+                return;
             int row = this.Document.CaretPostion.row;
             if (row > this.View.LayoutLines.Count - 1)
                 row = this.View.LayoutLines.Count - 1;
@@ -1262,23 +1263,6 @@ namespace FooEditEngine
             if (this.Document.LineBreak == LineBreakMethod.PageBound && this.View.PageBound.Width - this.View.LineBreakingMarginWidth > 0)
                 this.Document.PerformLayout();
             this.AdjustCaret();
-        }
-
-        void render_ChangedRenderResource(object sender, ChangedRenderRsourceEventArgs e)
-        {
-            if (e.type == ResourceType.Font)
-            {
-                if (this.Document.LineBreak == LineBreakMethod.PageBound)
-                    this.Document.PerformLayout();
-                this.AdjustCaret();
-            }
-            if (e.type == ResourceType.InlineChar)
-            {
-                int oldLineCountOnScreen = this.View.LineCountOnScreen;
-                this.View.CalculateLineCountOnScreen();
-                if(this.View.LineCountOnScreen != oldLineCountOnScreen)
-                    this.AdjustCaret();
-            }
         }
 
         void Document_Update(object sender, DocumentUpdateEventArgs e)

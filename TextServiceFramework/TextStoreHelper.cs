@@ -56,7 +56,7 @@ namespace FooEditEngine
 
         public static void GetStringExtent(Document document,EditView view,int i_startIndex,int i_endIndex,out Point startPos,out Point endPos)
         {
-            if(i_startIndex == i_endIndex)
+            if (i_startIndex == i_endIndex)
             {
                 startPos = view.CaretLocation;
                 endPos = view.CaretLocation;
@@ -71,7 +71,8 @@ namespace FooEditEngine
                 endPos = view.GetPostionFromTextPoint(endTextPoint);
             }
             //アンダーラインを描くことがあるので少しずらす
-            endPos.Y += view.render.emSize.Height + 5;
+            double emHeight = view.render != null ? view.render.emSize.Height : 0;
+            endPos.Y += emHeight + 5;
         }
 
         public static void GetSelection(Controller controller, SelectCollection selectons, out TextRange sel)
