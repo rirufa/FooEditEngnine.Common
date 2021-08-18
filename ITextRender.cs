@@ -173,14 +173,6 @@ namespace FooEditEngine
         {
             return new Windows.Foundation.Point(p.X, p.Y);
         }
-        /// <summary>
-        /// 変換演算子
-        /// </summary>
-        /// <param name="p"></param>
-        public static implicit operator SharpDX.Mathematics.Interop.RawVector2(Point p)
-        {
-            return new SharpDX.Mathematics.Interop.RawVector2((float)p.X, (float)p.Y);
-        }
 #endif
     }
     struct Size
@@ -423,11 +415,6 @@ namespace FooEditEngine
         public static implicit operator Windows.Foundation.Rect(Rectangle p)
         {
             return new Windows.Foundation.Rect(p.X, p.Y, p.Width, p.Height);
-        }
-
-        public static implicit operator SharpDX.Mathematics.Interop.RawRectangleF(Rectangle p)
-        {
-            return new SharpDX.Mathematics.Interop.RawRectangleF((float)p.X, (float)p.Y, (float)p.BottomRight.X, (float)p.BottomRight.Y);
         }
 #endif
     }

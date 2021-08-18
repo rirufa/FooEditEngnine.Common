@@ -8,6 +8,7 @@
 
 You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+#if WPF || WINFORM
 using System;
 using SharpDX;
 using D2D = SharpDX.Direct2D1;
@@ -221,3 +222,4 @@ namespace FooEditEngine
 
     }
 }
+#endif
