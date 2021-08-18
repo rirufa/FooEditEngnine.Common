@@ -8,6 +8,7 @@
 
 You should have received a copy of the GNU General Public License along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+#if WPF || WINFORM
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,36 +20,6 @@ using DW = SharpDX.DirectWrite;
 
 namespace FooEditEngine
 {
-    interface IMarkerEffecter
-    {
-        void Draw(double x, double y, double width, double height);
-    }
-
-    abstract class SquilleLineMarker : IMarkerEffecter
-    {
-        public abstract void DrawLine(double x, double y, double tox, double toy);
-        public void Draw(double x, double y, double width, double height)
-        {
-            double lineWidthSize = Util.RoundUp(height / 24) + 1;
-            double lineLength = lineWidthSize + (lineWidthSize * 4);
-            double waveHeight = Util.RoundUp(height / 12) + 1;
-            double lineSpacing = lineWidthSize * 8;
-
-            double valleyY = Util.RoundUp(y + waveHeight);
-            double ridgeY = Util.RoundUp(y);
-            double endX = x + width - 1;
-            for (; x < endX; x += (waveHeight * 2))
-            {
-                double ridgeX = x + waveHeight;
-                double valleyX = ridgeX + waveHeight;
-                if (ridgeX <= endX)
-                    this.DrawLine(x, valleyY, ridgeX, ridgeY);
-                if (valleyX <= endX)
-                    this.DrawLine(ridgeX, ridgeY, valleyX, valleyY);
-            }
-        }
-    }
-
     sealed class D2DSquilleLineMarker : SquilleLineMarker
     {
         D2D.SolidColorBrush brush;
@@ -109,3 +80,4 @@ namespace FooEditEngine
         }
     }
 }
+#endif
