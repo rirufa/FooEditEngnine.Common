@@ -479,7 +479,7 @@ namespace FooEditEngine
         void render_ChangedRenderResource(object sender, ChangedRenderRsourceEventArgs e)
         {
             this._LayoutLines.ClearLayoutCache();
-            if (e.type == ResourceType.Font)
+            if (e.type == ResourceType.Font || e.type == ResourceType.All)
             {
                 if (this.Document.LineBreak == LineBreakMethod.PageBound)
                     this.Document.PerformLayout();

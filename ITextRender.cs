@@ -503,6 +503,7 @@ namespace FooEditEngine
     }
     enum ResourceType
     {
+        All,
         Font,
         Brush,
         Antialias,
