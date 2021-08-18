@@ -109,7 +109,7 @@ namespace FooEditEngine
         /// </summary>
         /// <param name="text">対象となる文字列</param>
         /// <param name="length">文字列の長さ</param>
-        /// <param name="action">トークンが切り出されたときに呼び出されるデリゲート</param>
+        /// <param name="action">トークンが切り出されたときに呼び出す関数</param>
         /// <returns>エンクロージャーレベル。開始エンクロージャーだけを検出した場合は1以上の値を返し、
         /// 終了エンクロージャーだけを検出した場合を-1以下の値を返すようにします。
         /// 何も検出しなかった場合、開始エンクロージャーと終了エンクロージャーが対になっている場合、
