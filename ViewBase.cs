@@ -486,6 +486,7 @@ namespace FooEditEngine
                 this.CalculateClipRect();
                 this.CalculateLineCountOnScreen();
                 this.CalculateWhloeViewPort();
+                this.Document.RaiseCaretPostionChanged();
             }
             if (e.type == ResourceType.InlineChar)
             {

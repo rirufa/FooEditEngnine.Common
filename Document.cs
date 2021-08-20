@@ -471,9 +471,15 @@ namespace FooEditEngine
                 if(this._CaretPostion != value)
                 {
                     this._CaretPostion = value;
-                    this.CaretChanged(this, null);
+                    this.RaiseCaretPostionChanged();
                 }
             }
+        }
+
+        public void RaiseCaretPostionChanged()
+        {
+            if(this.CaretPostion != null)
+                this.CaretChanged(this, null);
         }
 
         internal void SetCaretPostionWithoutEvent(TextPoint value)
