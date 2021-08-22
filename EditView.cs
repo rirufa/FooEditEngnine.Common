@@ -260,8 +260,6 @@ namespace FooEditEngine
                 if (this.Document.HideRuler == false)
                     this.DrawRuler();
 
-                this.DrawLineMarker(this.Document.CaretPostion.row);
-
                 Point pos = this.render.TextArea.TopLeft;
                 //画面上では行をずらして表示する
                 pos.Y += this.Src.OffsetY;
@@ -335,7 +333,6 @@ namespace FooEditEngine
 
                 this.render.EndClipRect();
 
-                this.DrawInsertPoint();
 
                 this.Document.SelectGrippers.BottomLeft.Draw(this.render);
                 this.Document.SelectGrippers.BottomRight.Draw(this.render);
@@ -343,7 +340,11 @@ namespace FooEditEngine
                 render.CacheContent();
             }
 
-             this.DrawCaret();
+            this.DrawInsertPoint();
+
+            this.DrawLineMarker(this.Document.CaretPostion.row);
+
+            this.DrawCaret();
         }
 
         void DrawUpdateArea(int row,double ypos)
