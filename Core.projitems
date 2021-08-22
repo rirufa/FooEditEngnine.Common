@@ -20,9 +20,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Direct2D\CustomTextRenderer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Direct2D\D2DRenderCommon.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Direct2D\DrawingEffect.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Direct2D\InlineChar.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Direct2D\D2DMarkerFactory.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Direct2D\MultiSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Direct2D\MyTextLayout.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Document.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DummyRender.cs" />

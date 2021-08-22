@@ -18,14 +18,12 @@ namespace FooEditEngine
 {
     sealed class CustomTextRenderer : CallbackBase, DW.TextRenderer
     {
-        ColorBrushCollection brushes;
-        StrokeCollection strokes;
+        D2DResourceFactory factory;
 
-        public CustomTextRenderer(ColorBrushCollection brushes,StrokeCollection strokes,Color4 defalut)
+        public CustomTextRenderer(D2DResourceFactory f,Color4 defalut)
         {
             this.DefaultFore = defalut;
-            this.brushes = brushes;
-            this.strokes = strokes;
+            this.factory = f;
         }
 
         public Color4 DefaultFore
@@ -42,7 +40,7 @@ namespace FooEditEngine
             if (render == null)
                 return SharpDX.Result.Ok;
 
-            D2D.SolidColorBrush foreBrush = this.brushes.Get(render, this.DefaultFore);
+            D2D.SolidColorBrush foreBrush = this.factory.GetSolidColorBrush(this.DefaultFore);
             bool isDrawGlyphRun = true;
             if (clientDrawingEffect != null)
             {
@@ -56,12 +54,12 @@ namespace FooEditEngine
                 }
                 else if(selectedEffect != null)
                 {
-                    foreBrush = this.brushes.Get(render, selectedEffect.Fore);
+                    foreBrush = this.factory.GetSolidColorBrush(selectedEffect.Fore);
                 }
                 else if (drawingEffect != null)
                 {
                     if (drawingEffect.Stroke == HilightType.Url)
-                        foreBrush = this.brushes.Get(render, drawingEffect.Fore);
+                        foreBrush = this.factory.GetSolidColorBrush(drawingEffect.Fore);
                 }
             }
 
@@ -126,11 +124,11 @@ namespace FooEditEngine
             if (render == null)
                 return SharpDX.Result.Ok;
 
-            D2D.SolidColorBrush foreBrush = this.brushes.Get(render, this.DefaultFore);
+            D2D.SolidColorBrush foreBrush = this.factory.GetSolidColorBrush(this.DefaultFore);
             DrawingEffect effect = clientDrawingEffect as DrawingEffect;
             if (clientDrawingEffect != null && clientDrawingEffect != null)
             {
-                foreBrush = this.brushes.Get(render, effect.Fore);
+                foreBrush = this.factory.GetSolidColorBrush(effect.Fore);
             }
             if (effect == null)
             {
@@ -148,15 +146,15 @@ namespace FooEditEngine
             if (render == null)
                 return SharpDX.Result.Ok;
 
-            D2D.SolidColorBrush foreBrush = this.brushes.Get(render, this.DefaultFore);
+            D2D.SolidColorBrush foreBrush = this.factory.GetSolidColorBrush(this.DefaultFore);
             DrawingEffect effect = clientDrawingEffect as DrawingEffect;
             if (clientDrawingEffect != null && effect != null)
             {
-                foreBrush = this.brushes.Get(render, effect.Fore);
+                foreBrush = this.factory.GetSolidColorBrush(effect.Fore);
                 float thickness = effect.isBoldLine ? D2DRenderCommon.BoldThickness : D2DRenderCommon.NormalThickness;
                 if (effect.Stroke == HilightType.Squiggle)
                 {
-                    SquilleLineMarker marker = new D2DSquilleLineMarker(render, this.brushes.Get(render, effect.Fore), this.strokes.Get(render,effect.Stroke), 1);
+                    SquilleLineMarker marker = new D2DSquilleLineMarker(render, this.factory.GetSolidColorBrush(effect.Fore), this.factory.GetStroke(effect.Stroke), 1);
                     marker.Draw(
                         baselineOriginX, baselineOriginY + underline.Offset,
                         underline.Width, underline.RunHeight
@@ -164,7 +162,7 @@ namespace FooEditEngine
                 }
                 else
                 {
-                    LineMarker marker = new LineMarker(render, this.brushes.Get(render, effect.Fore), this.strokes.Get(render,effect.Stroke), GetThickness(render, thickness));
+                    LineMarker marker = new LineMarker(render, this.factory.GetSolidColorBrush(effect.Fore), this.factory.GetStroke(effect.Stroke), GetThickness(render, thickness));
                     marker.Draw(
                         baselineOriginX, baselineOriginY + underline.Offset,
                         underline.Width, 0

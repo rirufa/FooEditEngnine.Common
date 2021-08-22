@@ -52,11 +52,66 @@ namespace FooEditEngine
         Aliased = D2D.TextAntialiasMode.Aliased,
     }
 
-    sealed class ColorBrushCollection
+    public enum ShowSymbol
+    {
+        HalfSpace,
+        FullSpace,
+        Tab,
+    }
+
+    sealed class D2DResourceFactory
     {
         ResourceManager<Color4, D2D.SolidColorBrush> cache = new ResourceManager<Color4, D2D.SolidColorBrush>();
+        D2D.RenderTarget _device;
+        DW.Factory _DWFactory;
+        D2D.Factory Factory;
 
-        public D2D.SolidColorBrush Get(D2D.RenderTarget render,Color4 key)
+        public D2DResourceFactory()
+        {
+            this.Factory = new D2D.Factory(D2D.FactoryType.SingleThreaded);
+            this._DWFactory = new DW.Factory(DW.FactoryType.Isolated);
+        }
+
+        public D2D.RenderTarget Device
+        {
+            get
+            {
+                return this._device;
+            }
+            set
+            {
+                this._device = value;
+                this.Clear();
+            }
+        }
+
+        public DW.Factory DWFactory
+        {
+            get
+            {
+                return this._DWFactory;
+            }
+        }
+
+        public D2D.Factory D2DFactory
+        {
+            get
+            {
+                return this.Factory;
+            }
+        }
+
+        public DW.TextFormat GetTextFormat(string fontName,double fontSize, DW.FontWeight fontWeigth = DW.FontWeight.Normal, DW.FontStyle fontStyle = DW.FontStyle.Normal)
+        {
+            return new DW.TextFormat(this._DWFactory, fontName, fontWeigth, fontStyle, (float)fontSize);
+        }
+
+        public MyTextLayout GetTextLayout(string str, DW.TextFormat format, double width, double height, float dip, bool showLineBreak)
+        {
+            return new MyTextLayout(this._DWFactory, str, format, width, height, dip, showLineBreak);
+        }
+
+        public D2D.SolidColorBrush GetSolidColorBrush(Color4 key)
         {
             D2D.SolidColorBrush brush;
 
@@ -64,7 +119,7 @@ namespace FooEditEngine
             bool result = cache.TryGetValue(key, out brush);
             if (!result)
             {
-                brush = new D2D.SolidColorBrush(render, key);
+                brush = new D2D.SolidColorBrush(this._device, key);
                 cache.Add(key, brush);
             }
 #else
@@ -74,31 +129,12 @@ namespace FooEditEngine
             return brush;
         }
 
-        public void Clear()
-        {
-            cache.Clear();
-        }
-    }
+        ResourceManager<HilightType, D2D.StrokeStyle> stroke_cache = new ResourceManager<HilightType, D2D.StrokeStyle>();
 
-    sealed class StrokeCollection
-    {
-        ResourceManager<HilightType, D2D.StrokeStyle> cache = new ResourceManager<HilightType, D2D.StrokeStyle>();
-
-        public D2D.StrokeStyle Get(D2D.RenderTarget render,HilightType type)
-        {
-            return this.Get(render.Factory, type);
-        }
-
-        [Obsolete]
-        public D2D.StrokeStyle Get(HilightType type)
-        {
-            return this.Get(D2DRenderShared.D2DFactory, type);
-        }
-
-        public D2D.StrokeStyle Get(D2D.Factory factory,HilightType type)
+        public D2D.StrokeStyle GetStroke(HilightType type)
         {
             D2D.StrokeStyle stroke;
-            if (this.cache.TryGetValue(type, out stroke))
+            if (this.stroke_cache.TryGetValue(type, out stroke))
                 return stroke;
 
             D2D.StrokeStyleProperties prop = new D2D.StrokeStyleProperties();
@@ -129,87 +165,82 @@ namespace FooEditEngine
                     prop.DashStyle = D2D.DashStyle.Dot;
                     break;
             }
-            stroke = new D2D.StrokeStyle(D2DRenderShared.D2DFactory, prop);
-            this.cache.Add(type, stroke);
+            stroke = new D2D.StrokeStyle(this.Factory, prop);
+            this.stroke_cache.Add(type, stroke);
             return stroke;
         }
+
+        ResourceManager<ShowSymbol, D2D.Geometry> symbol_cache = new ResourceManager<ShowSymbol, D2D.Geometry>();
+
+        public D2D.Geometry CreateSymbol(ShowSymbol sym, DW.TextFormat format)
+        {
+
+            D2D.Geometry cached_geo = null;
+            bool result = symbol_cache.TryGetValue(sym, out cached_geo);
+
+            if (!result)
+            {
+                const int margin = 2;
+                D2D.Geometry geo = null;
+                DW.TextLayout layout = null;
+                D2D.PathGeometry path = null;
+                DW.TextMetrics metrics;
+                switch (sym)
+                {
+                    case ShowSymbol.FullSpace:
+                        layout = new DW.TextLayout(this._DWFactory, "　", format, float.MaxValue, float.MaxValue);
+                        metrics = layout.Metrics;
+                        Rectangle rect = new Rectangle(margin, margin, Math.Max(1, metrics.WidthIncludingTrailingWhitespace - margin * 2), Math.Max(1, metrics.Height - margin * 2));
+                        geo = new D2D.RectangleGeometry(this.Factory, rect);
+                        break;
+                    case ShowSymbol.HalfSpace:
+                        layout = new DW.TextLayout(this._DWFactory, " ", format, float.MaxValue, float.MaxValue);
+                        metrics = layout.Metrics;
+                        rect = new Rectangle(margin, margin, Math.Max(1, metrics.WidthIncludingTrailingWhitespace - margin * 2), Math.Max(1, metrics.Height - margin * 2));
+                        geo = new D2D.RectangleGeometry(this.Factory, rect);
+                        break;
+                    case ShowSymbol.Tab:
+                        layout = new DW.TextLayout(this._DWFactory, "0", format, float.MaxValue, float.MaxValue);
+                        metrics = layout.Metrics;
+                        path = new D2D.PathGeometry(this.Factory);
+                        var sink = path.Open();
+                        sink.BeginFigure(new SharpDX.Mathematics.Interop.RawVector2(1,1),D2D.FigureBegin.Filled);   //少し隙間を開けないと描写されない
+                        sink.AddLine(new SharpDX.Mathematics.Interop.RawVector2((float)1, (float)metrics.Height));
+                        sink.EndFigure(D2D.FigureEnd.Closed);
+                        sink.Close();
+                        geo = path;
+                        break;
+                }
+                this.symbol_cache.Add(sym, geo);
+
+            }
+            return cached_geo;
+        }
+
         public void Clear()
         {
+            stroke_cache.Clear();
+            symbol_cache.Clear();
             cache.Clear();
         }
     }
 
-    class D2DRenderShared
-    {
-        static DW.Factory _DWFactory;
-        static public DW.Factory DWFactory
-        {
-            get
-            {
-                if(_DWFactory == null)
-                {
-                    _DWFactory = new DW.Factory(DW.FactoryType.Shared);
-                }
-                return _DWFactory;
-            }
-        }
-#if METRO || WINDOWS_UWP
-        static D2D.Factory1 _D2DFactory;
-
-        static public D2D.Factory1 D2DFactory
-        {
-            get
-            {
-                if (_D2DFactory == null)
-                {
-                    _D2DFactory = new D2D.Factory1(D2D.FactoryType.SingleThreaded);
-                }
-                return _D2DFactory;
-            }
-        }
-#else
-        static D2D.Factory _D2DFactory;
-        static public D2D.Factory D2DFactory
-        {
-            get
-            {
-                if (_D2DFactory == null)
-                {
-                    _D2DFactory = new D2D.Factory(D2D.FactoryType.SingleThreaded);
-                }
-                return _D2DFactory;
-            }
-        }
-#endif
-    }
-
     class D2DRenderCommon : IDisposable
     {
-        InlineManager HiddenChars;
         TextAntialiasMode _TextAntialiasMode;
         Color4 _ControlChar,_Forground,_URL,_Hilight;
         DW.TextFormat format;
         protected CustomTextRenderer textRender;
         protected D2D.Bitmap cachedBitMap;
         int tabLength = 8;
-        bool _ShowLineBreak,_RightToLeft;
+        bool _RightToLeft;
         Color4 _Comment, _Literal, _Keyword1, _Keyword2;
         protected bool hasCache = false;
         protected Size renderSize;
-
-        protected ColorBrushCollection Brushes
-        {
-            get;
-            private set;
-        }
-
-        protected StrokeCollection Strokes
-        {
-            get;
-            private set;
-        }
+        protected D2DResourceFactory _factory;
 
         D2D.RenderTarget _render;
+
         protected D2D.RenderTarget render
         {
             get { return _render; }
@@ -217,15 +248,13 @@ namespace FooEditEngine
             {
                 _render = value;
                 this.TextAntialiasMode = this._TextAntialiasMode;
-                if(this.HiddenChars != null)
-                    this.HiddenChars.ReGenerate();
+                this._factory.Device = render;
             }
         }
 
         public D2DRenderCommon()
         {
-            this.Brushes = new ColorBrushCollection();
-            this.Strokes = new StrokeCollection();
+            this._factory = new D2DResourceFactory();
             this.ChangedRenderResource += (s, e) => { };
             this.ChangedRightToLeft += (s, e) => { };
             this.renderSize = new Size();
@@ -246,28 +275,20 @@ namespace FooEditEngine
             this.GetDpi(out dpix, out dpiy);
 
             float fontSizeInDIP = fontSize * (dpix / 72.0f);
-            this.format = new DW.TextFormat(D2DRenderShared.DWFactory, fontName, fontWeigth, fontStyle, fontSizeInDIP);
+            this.format = this._factory.GetTextFormat(fontName, fontSizeInDIP, fontWeigth, fontStyle);
             this.format.WordWrapping = DW.WordWrapping.NoWrap;
             this.format.ReadingDirection = GetDWRightDirect(_RightToLeft);
 
-            MyTextLayout layout = new MyTextLayout(D2DRenderShared.DWFactory, "0", this.format, float.MaxValue, float.MaxValue, dpix, false);
+            MyTextLayout layout = this._factory.GetTextLayout("0", this.format, float.MaxValue, float.MaxValue, dpix, false);
             layout.RightToLeft = false;
             this.emSize = new Size(layout.Width, layout.Height);
             layout.Dispose();
-
-            if (this.HiddenChars == null)
-                this.HiddenChars = new InlineManager(D2DRenderShared.DWFactory, this.format, this.ControlChar, this.Brushes, this.emSize);
-            else
-            {
-                this.HiddenChars.Format = this.format;
-                this.HiddenChars.emSize = this.emSize;
-            }
 
             this.TabWidthChar = this.TabWidthChar;
 
             this.hasCache = false;
 
-            layout = new MyTextLayout(D2DRenderShared.DWFactory, "+", this.format, float.MaxValue, float.MaxValue, dpix, false);
+            layout = this._factory.GetTextLayout("+", this.format, float.MaxValue, float.MaxValue, dpix, false);
             layout.RightToLeft = false;
 #if METRO
             this.FoldingWidth = Math.Max(D2DRenderCommon.MiniumeWidth, layout.Width);
@@ -275,6 +296,8 @@ namespace FooEditEngine
             this.FoldingWidth = layout.Width;
 #endif
             layout.Dispose();
+
+            this._factory.Clear();
 
             this.OnChangedRenderResource(this,new ChangedRenderRsourceEventArgs(ResourceType.Font));
         }
@@ -322,74 +345,26 @@ namespace FooEditEngine
 
         public bool ShowFullSpace
         {
-            get
-            {
-                if (this.HiddenChars == null)
-                    return false;
-                else
-                    return this.HiddenChars.ContainsSymbol('　');
-            }
-            set
-            {
-                if (this.HiddenChars == null)
-                    throw new InvalidOperationException();
-                if (value)
-                    this.HiddenChars.AddSymbol('　', '□');
-                else
-                    this.HiddenChars.RemoveSymbol('　');
-            }
+            get;
+            set;
         }
 
         public bool ShowHalfSpace
         {
-            get
-            {
-                if (this.HiddenChars == null)
-                    return false;
-                else
-                    return this.HiddenChars.ContainsSymbol(' ');
-            }
-            set
-            {
-                if (this.HiddenChars == null)
-                    throw new InvalidOperationException();
-                if (value)
-                    this.HiddenChars.AddSymbol(' ', 'ﾛ');
-                else
-                    this.HiddenChars.RemoveSymbol(' ');
-            }
+            get;
+            set;
         }
 
         public bool ShowTab
         {
-            get
-            {
-                if (this.HiddenChars == null)
-                    return false;
-                else
-                    return this.HiddenChars.ContainsSymbol('\t');
-            }
-            set
-            {
-                if (this.HiddenChars == null)
-                    throw new InvalidOperationException();
-                if (value)
-                    this.HiddenChars.AddSymbol('\t', '>');
-                else
-                    this.HiddenChars.RemoveSymbol('\t');
-            }
+            get;
+            set;
         }
 
         public bool ShowLineBreak
         {
-            get
-            {
-                return this._ShowLineBreak;
-            }
-            set
-            {
-                this._ShowLineBreak = value;
-            }
+            get;
+            set;
         }
 
         public Color4 Foreground
@@ -460,8 +435,6 @@ namespace FooEditEngine
             set
             {
                 this._ControlChar = value;
-                if (this.HiddenChars != null)
-                    this.HiddenChars.Fore = value;
                 this.OnChangedRenderResource(this, new ChangedRenderRsourceEventArgs(ResourceType.Brush));
             }
         }
@@ -571,9 +544,10 @@ namespace FooEditEngine
                 if (value == 0)
                     return;
                 this.tabLength = value;
-                DW.TextLayout layout = new DW.TextLayout(D2DRenderShared.DWFactory, "0", this.format, float.MaxValue, float.MaxValue);
-                float width = (float)(layout.Metrics.Width * value);
-                this.HiddenChars.TabWidth = width;
+                float dpix, dpiy;
+                this.GetDpi(out dpix, out dpiy);
+                MyTextLayout layout = this._factory.GetTextLayout("0", this.format, float.MaxValue, float.MaxValue,dpiy,false);
+                float width = (float)(layout.Width * value);
                 this.format.IncrementalTabStop = width;
                 layout.Dispose();
             }
@@ -591,8 +565,8 @@ namespace FooEditEngine
             ellipse.Point = p;
             ellipse.RadiusX = (float)radius;
             ellipse.RadiusY = (float)radius;
-            this.render.FillEllipse(ellipse, this.Brushes.Get(this.render,this.Background));
-            this.render.DrawEllipse(ellipse, this.Brushes.Get(this.render, this.Foreground));
+            this.render.FillEllipse(ellipse, this._factory.GetSolidColorBrush(this.Background));
+            this.render.DrawEllipse(ellipse, this._factory.GetSolidColorBrush(this.Foreground));
         }
 
 
@@ -634,16 +608,16 @@ namespace FooEditEngine
             switch (colorType)
             {
                 case StringColorType.Forground:
-                    brush = this.Brushes.Get(this.render, this.Foreground);
+                    brush = this._factory.GetSolidColorBrush(this.Foreground);
                     break;
                 case StringColorType.LineNumber:
-                    brush = this.Brushes.Get(this.render, this.LineNumber);
+                    brush = this._factory.GetSolidColorBrush(this.LineNumber);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
             this.GetDpi(out dpix, out dpiy);
-            MyTextLayout layout = new MyTextLayout(D2DRenderShared.DWFactory, str, this.format, (float)layoutRect.Width, (float)layoutRect.Height,dpix,false);
+            MyTextLayout layout = this._factory.GetTextLayout(str, this.format, (float)layoutRect.Width, (float)layoutRect.Height,dpix,false);
             layout.StringAlignment = align;
             layout.Draw(this.render, (float)x, (float)y, brush);
             layout.Dispose();
@@ -663,23 +637,23 @@ namespace FooEditEngine
             switch(type)
             {
                 case FillRectType.OverwriteCaret:
-                    brush = this.Brushes.Get(this.render, this.OverwriteCaret);
+                    brush = this._factory.GetSolidColorBrush(this.OverwriteCaret);
                     this.render.FillRectangle(rect, brush);
                     break;
                 case FillRectType.InsertCaret:
-                    brush = this.Brushes.Get(this.render, this.InsertCaret);
+                    brush = this._factory.GetSolidColorBrush(this.InsertCaret);
                     this.render.FillRectangle(rect, brush);
                     break;
                 case FillRectType.InsertPoint:
-                    brush = this.Brushes.Get(this.render, this.Hilight);
+                    brush = this._factory.GetSolidColorBrush(this.Hilight);
                     this.render.FillRectangle(rect, brush);
                     break;
                 case FillRectType.LineMarker:
-                    brush = this.Brushes.Get(this.render, this.LineMarker);
+                    brush = this._factory.GetSolidColorBrush(this.LineMarker);
                     this.render.DrawRectangle(rect, brush, EditView.LineMarkerThickness);
                     break;
                 case FillRectType.UpdateArea:
-                    brush = this.Brushes.Get(this.render, this.UpdateArea);
+                    brush = this._factory.GetSolidColorBrush(this.UpdateArea);
                     this.render.FillRectangle(rect, brush);
                     break;
             }
@@ -723,6 +697,43 @@ namespace FooEditEngine
                 }
             }
 
+            if (this.ShowFullSpace || this.ShowHalfSpace || this.ShowTab)
+            {
+                string str = lti[row];
+                D2D.Geometry geo = null;
+                D2D.StrokeStyle stroke = null;
+                for (int i = 0; i < lineLength; i++)
+                {
+                    Point pos = new Point(0, 0);
+                    if (this.ShowTab && str[i] == '\t')
+                    {
+                        pos = layout.GetPostionFromIndex(i);
+                        geo = this._factory.CreateSymbol(ShowSymbol.Tab, this.format);
+                        stroke = this._factory.GetStroke(HilightType.Dash);
+                    }
+                    else if (this.ShowFullSpace && str[i] == '　')
+                    {
+                        pos = layout.GetPostionFromIndex(i);
+                        geo = this._factory.CreateSymbol(ShowSymbol.FullSpace, this.format);
+                        stroke = this._factory.GetStroke(HilightType.Sold);
+                    }
+                    else if (this.ShowHalfSpace && str[i] == ' ')
+                    {
+                        pos = layout.GetPostionFromIndex(i);
+                        geo = this._factory.CreateSymbol(ShowSymbol.HalfSpace, this.format);
+                        stroke = this._factory.GetStroke(HilightType.Sold);
+                    }
+                    if (geo != null)
+                    {
+                        var old_trans = this.render.Transform;
+                        this.render.Transform = SharpDX.Matrix3x2.Translation(new Vector2((float)(pos.X + x), (float)(pos.Y + y)));
+                        this.render.DrawGeometry(geo, this._factory.GetSolidColorBrush(this.ControlChar), NormalThickness, stroke);
+                        this.render.Transform = old_trans;
+                        geo = null;
+                    }
+                }
+            }
+
             layout.Draw(this.render,textRender, (float)x, (float)y);
 
         }
@@ -741,13 +752,13 @@ namespace FooEditEngine
         {
             if (color == null)
                 return;
-            layout.SetDrawingEffect(this.Brushes.Get(this.render, (Color4)color), new DW.TextRange(start, length));
+            layout.SetDrawingEffect(this._factory.GetSolidColorBrush((Color4)color), new DW.TextRange(start, length));
         }
 
         public void DrawLine(Point from, Point to)
         {
-            D2D.Brush brush = this.Brushes.Get(this.render, this.Foreground);
-            D2D.StrokeStyle stroke = this.Strokes.Get(D2DRenderShared.D2DFactory,HilightType.Sold);
+            D2D.Brush brush = this._factory.GetSolidColorBrush(this.Foreground);
+            D2D.StrokeStyle stroke = this._factory.GetStroke(HilightType.Sold);
             this.render.DrawLine(from, to, brush, 1.0f, stroke);
         }
 
@@ -770,16 +781,16 @@ namespace FooEditEngine
                 color = this.Foreground;
 
             IMarkerEffecter effecter = null;
-            D2D.SolidColorBrush brush = this.Brushes.Get(this.render, color);
+            D2D.SolidColorBrush brush = this._factory.GetSolidColorBrush(color);
 
             if (type == HilightType.Squiggle)
-                effecter = new D2DSquilleLineMarker(this.render, brush, this.Strokes.Get(D2DRenderShared.D2DFactory, HilightType.Squiggle), thickness);
+                effecter = new D2DSquilleLineMarker(this.render, brush, this._factory.GetStroke(HilightType.Squiggle), thickness);
             else if (type == HilightType.Select)
                 effecter = new HilightMarker(this.render, brush);
             else if (type == HilightType.None)
                 effecter = null;
             else
-                effecter = new LineMarker(this.render, brush, this.Strokes.Get(D2DRenderShared.D2DFactory,type), thickness);
+                effecter = new LineMarker(this.render, brush, this._factory.GetStroke(type), thickness);
 
             if (effecter != null)
             {
@@ -811,32 +822,32 @@ namespace FooEditEngine
             }
 
             bool hasNewLine = str.Length > 0 && str[str.Length - 1] == Document.NewLine;
-            MyTextLayout newLayout = new MyTextLayout(D2DRenderShared.DWFactory,
+            MyTextLayout newLayout = this._factory.GetTextLayout(
                 str,
                 this.format,
                 layoutWidth,
                 this.TextArea.Height,
                 dpiy,
-                hasNewLine && this._ShowLineBreak);
-            ParseLayout(newLayout, str);
+                hasNewLine && this.ShowLineBreak);
+            newLayout.SetLineBreakBrush(this._factory.GetSolidColorBrush(this.ControlChar));
             if (syntaxCollection != null)
             {
                 foreach (SyntaxInfo s in syntaxCollection)
                 {
-                    D2D.SolidColorBrush brush = this.Brushes.Get(this.render, this.Foreground);
+                    D2D.SolidColorBrush brush = this._factory.GetSolidColorBrush(this.Foreground);
                     switch (s.type)
                     {
                         case TokenType.Comment:
-                            brush = this.Brushes.Get(this.render, this.Comment);
+                            brush = this._factory.GetSolidColorBrush(this.Comment);
                             break;
                         case TokenType.Keyword1:
-                            brush = this.Brushes.Get(this.render, this.Keyword1);
+                            brush = this._factory.GetSolidColorBrush(this.Keyword1);
                             break;
                         case TokenType.Keyword2:
-                            brush = this.Brushes.Get(this.render, this.Keyword2);
+                            brush = this._factory.GetSolidColorBrush(this.Keyword2);
                             break;
                         case TokenType.Literal:
-                            brush = this.Brushes.Get(this.render, this.Literal);
+                            brush = this._factory.GetSolidColorBrush(this.Literal);
                             break;
                     }
                     newLayout.SetDrawingEffect(brush, new DW.TextRange(s.index, s.length));
@@ -883,7 +894,6 @@ namespace FooEditEngine
             if (!_Disposed)
             {
                 this.Dispose(true);
-                this.HiddenChars.Clear();
                 if (this.format != null)
                     this.format.Dispose();
             }
@@ -904,20 +914,6 @@ namespace FooEditEngine
             float dpi;
             this.GetDpi(out dpi, out dpi);
             return dpi / 96.0;
-        }
-
-        void ParseLayout(MyTextLayout layout, string str)
-        {
-            for (int i = 0; i < str.Length; i++)
-            {
-                DW.InlineObject inlineObject = this.HiddenChars.Get(layout,i, str);
-                if (inlineObject != null)
-                {
-                    layout.SetInlineObject(inlineObject, new DW.TextRange(i, 1));
-                    layout.SetDrawingEffect(this.Brushes.Get(this.render, this.ControlChar), new DW.TextRange(i, 1));
-                }
-            }
-            layout.SetLineBreakBrush(this.Brushes.Get(this.render, this.ControlChar));
         }
     }
 }
