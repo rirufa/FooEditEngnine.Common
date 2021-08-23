@@ -250,7 +250,7 @@ namespace FooEditEngine
                 render.IsVaildCache() &&
                 !force)
             {
-                render.DrawCachedBitmap(updateRect);
+                render.DrawCachedBitmap(updateRect,updateRect);
             }
             else
             {

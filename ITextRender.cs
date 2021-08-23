@@ -648,8 +648,9 @@ namespace FooEditEngine
         /// <summary>
         /// キャッシュされたビットマップを描写する
         /// </summary>
-        /// <param name="rect">描く領域</param>
-        void DrawCachedBitmap(Rectangle rect);
+        /// <param name="dstRect">転送先</param>
+        /// <param name="srcRect">転送元</param>
+        void DrawCachedBitmap(Rectangle dstRect,Rectangle srcRect);
 
         /// <summary>
         /// 線を描く

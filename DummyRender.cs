@@ -85,7 +85,7 @@ namespace FooEditEngine
         public event EventHandler ChangedRightToLeft;
         #pragma warning restore 0067
 
-        public void DrawCachedBitmap(Rectangle rect)
+        public void DrawCachedBitmap(Rectangle rect,Rectangle rect2)
         {
             throw new NotImplementedException();
         }

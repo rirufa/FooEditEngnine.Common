@@ -570,7 +570,7 @@ namespace FooEditEngine
         }
 
 
-        public virtual void DrawCachedBitmap(Rectangle rect)
+        public virtual void DrawCachedBitmap(Rectangle dst,Rectangle src)
         {
         }
 
